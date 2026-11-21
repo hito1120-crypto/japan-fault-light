@@ -33,6 +33,7 @@ select{background:rgba(20,28,48,.85);color:var(--fg);border:1px solid var(--line
 .badge{display:inline-block;border:1px dashed var(--est);color:var(--est);border-radius:6px;padding:0 6px;font-size:11.5px;margin-left:4px}
 .tag{display:inline-block;border-radius:6px;padding:0 7px;font-size:11.5px;margin-bottom:6px;color:#04060c}
 .note{color:var(--mut);font-size:11.5px;margin-top:8px}
+#hint{position:absolute;left:14px;top:calc(52px + env(safe-area-inset-top));font-size:10.5px;line-height:1.5;color:#8d9bb5;text-shadow:0 0 6px #000;pointer-events:none}
 #credit{position:absolute;right:10px;top:calc(10px + env(safe-area-inset-top));font-size:10px;color:#5e6a82;text-align:right;max-width:46vw}
 details#notes{font-size:11px;color:var(--mut);line-height:1.55;max-width:760px}details#notes summary{cursor:pointer;color:#9fb0cc;font-size:11.5px}details#notes p{margin:4px 0}
 body.video #ui{display:none}
@@ -44,6 +45,7 @@ body.video #ui{display:none}
 <canvas id="c"></canvas>
 <div id="ui">
   <div id="title">日本の断層の光<small>断層ごとの30年発生確率で明るさと脈動が変わる</small></div>
+  <div id="hint">回転: ドラッグ<br>移動: 右ドラッグ・Shift+ドラッグ(スマホは2本指)<br>拡大: ホイール・ピンチ</div>
   <div id="credit"></div>
   <div id="panel"><button class="x" id="px" aria-label="閉じる">×</button><div id="pbody"></div></div>
   <div id="bar">
@@ -57,6 +59,7 @@ body.video #ui{display:none}
     <div class="row">
       <div class="seg" id="vseg"><button data-v="3d" class="on">3D</button><button data-v="top">真上</button></div>
       <label class="sl">深さ倍率 <input id="mult" type="range" min="1" max="5" step="0.5" value="2"><span id="mv">x2</span></label>
+      <button class="chip" id="reset" style="--c:#9fc2ff">リセット</button>
       <select id="sel"><option value="">断層を選ぶ…</option></select>
     </div>
     <details id="notes"><summary>出典・注記</summary>
@@ -98,6 +101,7 @@ function proj(x,y,z,o){
   return [W/2+o.px+o.sc*x1, H*0.52+o.py+o.sc*(-y1*Math.sin(o.el)+z*o.mult*Math.cos(o.el))];
 }
 const coast=D.coast.map(r=>r.map(p=>[(p[0]-136)*KX,(p[1]-35)*KY]));
+const borders=D.borders.map(r=>r.map(p=>[(p[0]-136)*KX,(p[1]-35)*KY]));
 // sprites
 function sprite(rgb){const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d');const gr=g.createRadialGradient(32,32,0,32,32,32);gr.addColorStop(0,`rgba(${rgb},1)`);gr.addColorStop(.25,`rgba(${rgb},.55)`);gr.addColorStop(1,`rgba(${rgb},0)`);g.fillStyle=gr;g.fillRect(0,0,64,64);return c;}
 const SP=[sprite('255,238,180'),sprite('255,190,120'),sprite('200,180,255')];
@@ -134,11 +138,12 @@ function drawFault(f,k,o,sel){
   ctx.setLineDash([]);
 }
 function drawBase(o){
-  const g=ctx.createRadialGradient(W/2,H*0.5,0,W/2,H*0.5,Math.max(W,H)*0.75);g.addColorStop(0,'#0a1020');g.addColorStop(1,'#03050a');
+  const g=ctx.createRadialGradient(W/2,H*0.5,0,W/2,H*0.5,Math.max(W,H)*0.75);g.addColorStop(0,'#03050b');g.addColorStop(1,'#010206');
   ctx.globalCompositeOperation='source-over';ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
-  ctx.strokeStyle='rgba(130,155,200,.40)';ctx.lineWidth=.8;
-  ctx.beginPath();for(const r of coast){for(let i=0;i<r.length;i++){const q=proj(r[i][0],r[i][1],0,o);i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]);}}
-  ctx.stroke();
+  const path=(rs)=>{ctx.beginPath();for(const r of rs){for(let i=0;i<r.length;i++){const q=proj(r[i][0],r[i][1],0,o);i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]);}ctx.closePath();}};
+  path(coast);ctx.fillStyle='rgb(27,39,59)';ctx.fill();
+  path(borders);ctx.strokeStyle='rgba(165,190,225,.26)';ctx.lineWidth=VIDEO?1.1:0.9;ctx.lineJoin='round';ctx.stroke();
+  path(coast);ctx.strokeStyle='rgba(222,234,252,.88)';ctx.lineWidth=VIDEO?2.6:2;ctx.stroke();
 }
 function drawCatStatic(o){
   ctx.globalCompositeOperation='lighter';
@@ -255,16 +260,18 @@ function initUI(){
     const el=S.view==='top'?Math.PI/2:0.95,az=S.view==='top'?0:-0.3;const f={el:S.el,az:S.az},ts=performance.now();const old=anim;
     anim=(now)=>{const u=Math.min(1,(now-ts)/600),e=u*u*(3-2*u);S.el=f.el+(el-f.el)*e;S.az=f.az+(az-f.az)*e;if(u>=1)anim=null;};});
   const m=document.getElementById('mult');m.oninput=()=>{document.getElementById('mv').textContent='x'+(+m.value);};
+  document.getElementById('reset').onclick=()=>{anim=null;S.view='3d';document.querySelectorAll('#vseg button').forEach(x=>x.classList.toggle('on',x.dataset.v==='3d'));document.getElementById('mult').value=2;document.getElementById('mv').textContent='x2';select(null);homeCam();};
   document.getElementById('credit').textContent='J-SHIS(防災科研) / 国土交通省 日本海検討会 / USGS / Natural Earth';
   // pointer
-  const ptrs=new Map();let moved=0,last=null,lastDist=0,downT=0;
-  cv.addEventListener('pointerdown',e=>{cv.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,[e.clientX,e.clientY]);moved=0;downT=performance.now();if(ptrs.size===2){const [a,b]=[...ptrs.values()];lastDist=Math.hypot(a[0]-b[0],a[1]-b[1]);}});
+  const ptrs=new Map();let moved=0,last=null,lastDist=0,downT=0,lastC=null;
+  cv.addEventListener('pointerdown',e=>{cv.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,[e.clientX,e.clientY]);moved=0;downT=performance.now();if(ptrs.size===2){const [a,b]=[...ptrs.values()];lastDist=Math.hypot(a[0]-b[0],a[1]-b[1]);lastC=[(a[0]+b[0])/2,(a[1]+b[1])/2];}});
   cv.addEventListener('pointermove',e=>{
     if(!ptrs.has(e.pointerId))return;const p=ptrs.get(e.pointerId);const dx=e.clientX-p[0],dy=e.clientY-p[1];ptrs.set(e.pointerId,[e.clientX,e.clientY]);moved+=Math.abs(dx)+Math.abs(dy);anim=null;
-    if(ptrs.size===1){if(S.view==='top'||e.shiftKey||e.buttons===2){S.px+=dx;S.py+=dy;}else{S.az+=dx*0.006;S.el=Math.max(0.15,Math.min(Math.PI/2,S.el+dy*0.005));}}
-    else if(ptrs.size===2){const [a,b]=[...ptrs.values()];const d=Math.hypot(a[0]-b[0],a[1]-b[1]);if(lastDist){const k=d/lastDist;const cx=(a[0]+b[0])/2,cy=(a[1]+b[1])/2;S.px=cx-(cx-W/2-S.px)*k-W/2;S.py=cy-(cy-H*0.52-S.py)*k-H*0.52;S.sc*=k;}lastDist=d;}
+    if(ptrs.size===1){if(S.view==='top'||e.shiftKey||(e.buttons&6)){S.px+=dx;S.py+=dy;}else{S.az-=dx*0.006;S.el=Math.max(0.15,Math.min(Math.PI/2,S.el-dy*0.005));}}
+    else if(ptrs.size===2){const [a,b]=[...ptrs.values()];const d=Math.hypot(a[0]-b[0],a[1]-b[1]);if(lastDist){const k=d/lastDist;const cx=(a[0]+b[0])/2,cy=(a[1]+b[1])/2;S.px=cx-(cx-W/2-S.px)*k-W/2;S.py=cy-(cy-H*0.52-S.py)*k-H*0.52;S.sc*=k;}
+      const cx2=(a[0]+b[0])/2,cy2=(a[1]+b[1])/2;if(lastC){S.px+=cx2-lastC[0];S.py+=cy2-lastC[1];}lastC=[cx2,cy2];lastDist=d;}
   });
-  const up=e=>{if(ptrs.size===1&&moved<6&&performance.now()-downT<500){const f=hit(e.clientX,e.clientY);select(f,false);}ptrs.delete(e.pointerId);lastDist=0;};
+  const up=e=>{if(ptrs.size===1&&moved<6&&performance.now()-downT<500){const f=hit(e.clientX,e.clientY);select(f,false);}ptrs.delete(e.pointerId);lastDist=0;lastC=null;};
   cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',e=>{ptrs.delete(e.pointerId);});
   cv.addEventListener('wheel',e=>{e.preventDefault();const k=Math.exp(-e.deltaY*0.0015);S.px=e.clientX-W/2-(e.clientX-W/2-S.px)*k;S.py=e.clientY-H*0.52-(e.clientY-H*0.52-S.py)*k;S.sc*=k;},{passive:false});
   cv.addEventListener('contextmenu',e=>e.preventDefault());

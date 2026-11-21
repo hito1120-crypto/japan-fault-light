@@ -3,7 +3,7 @@ from shapely.geometry import shape,box
 from shapely.ops import unary_union
 os.chdir(os.path.join(os.path.dirname(os.path.abspath(__file__)),'..'))
 F=json.load(open('data/faults.geojson',encoding='utf8'))['features']
-ne=json.load(open('data/raw/ne_50m_land.geojson',encoding='utf8'))
+ne=json.load(open('data/raw/ne_10m_land.geojson',encoding='utf8'))
 bb=box(118,22,156,52)
 rings=[]
 for f in ne['features']:
@@ -11,8 +11,18 @@ for f in ne['features']:
     gs=g.geoms if hasattr(g,'geoms') else [g]
     for p in gs:
         if not p.intersects(bb): continue
-        p=p.simplify(0.01 if p.area<50 else 0.08)
+        p=p.simplify(0.004 if p.area<50 else 0.06)
+        if p.is_empty or p.geom_type!='Polygon': continue
         rings.append([[round(x,2),round(y,2)] for x,y in p.exterior.coords])
+adm=json.load(open('data/raw/ne_10m_admin1.geojson',encoding='utf8'))
+borders=[]
+for f in adm['features']:
+    if f['properties'].get('adm0_a3')!='JPN': continue
+    g=shape(f['geometry']);gs=g.geoms if hasattr(g,'geoms') else [g]
+    for p in gs:
+        p=p.simplify(0.008)
+        if p.is_empty or p.geom_type!='Polygon': continue
+        borders.append([[round(x,2),round(y,2)] for x,y in p.exterior.coords])
 faults=[]
 for f in F:
     p=f['properties'];g=f['geometry']
@@ -32,7 +42,7 @@ for t,la,lo,de,m in cat:
     d=datetime.datetime.strptime(t[:19],'%Y-%m-%dT%H:%M:%S')
     ev.append([round((d-t0).total_seconds()/86400),round(lo*100),round(la*100),round(de),round(m*10)])
 ev.sort()
-data=dict(faults=faults,coast=rings,ev=ev)
+data=dict(faults=faults,coast=rings,borders=borders,ev=ev)
 js=json.dumps(data,ensure_ascii=False,separators=(',',':'))
 tpl=open('template.html',encoding='utf8').read()
 os.makedirs('site',exist_ok=True)
