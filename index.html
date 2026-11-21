@@ -45,7 +45,7 @@ body.video #ui{display:none}
 <canvas id="c"></canvas>
 <div id="ui">
   <div id="title">日本の断層の光<small>断層ごとの30年発生確率で明るさと脈動が変わる</small></div>
-  <div id="hint">回転: ドラッグ(下へ引き続けると海面の下へもぐれる)<br>移動: 右ドラッグ・Shift+ドラッグ(スマホは2本指)<br>拡大: ホイール・ピンチ</div>
+  <div id="hint">回転: ドラッグ<br>移動: 右ドラッグ・Shift+ドラッグ(スマホは2本指)<br>拡大: ホイール・ピンチ</div>
   <div id="credit"></div>
   <div id="panel"><button class="x" id="px" aria-label="閉じる">×</button><div id="pbody"></div></div>
   <div id="bar">
@@ -397,7 +397,7 @@ function initUI(){
   cv.addEventListener('pointerdown',e=>{cv.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,[e.clientX,e.clientY]);moved=0;downT=performance.now();if(ptrs.size===2){const [a,b]=[...ptrs.values()];lastDist=Math.hypot(a[0]-b[0],a[1]-b[1]);lastC=[(a[0]+b[0])/2,(a[1]+b[1])/2];}});
   cv.addEventListener('pointermove',e=>{
     if(!ptrs.has(e.pointerId))return;const p=ptrs.get(e.pointerId);const dx=e.clientX-p[0],dy=e.clientY-p[1];ptrs.set(e.pointerId,[e.clientX,e.clientY]);moved+=Math.abs(dx)+Math.abs(dy);anim=null;
-    if(ptrs.size===1){if(S.view==='top'||e.shiftKey||(e.buttons&6)){S.px+=dx;S.py+=dy;}else{S.az-=dx*0.006;S.el=Math.max(-1.5,Math.min(Math.PI/2,S.el-dy*0.005));}}
+    if(ptrs.size===1){if(S.view==='top'||e.shiftKey||(e.buttons&6)){S.px+=dx;S.py+=dy;}else{S.az-=dx*0.006;S.el=Math.max(0,Math.min(Math.PI/2,S.el-dy*0.005));}}
     else if(ptrs.size===2){const [a,b]=[...ptrs.values()];const d=Math.hypot(a[0]-b[0],a[1]-b[1]);if(lastDist){const k=d/lastDist;const cx=(a[0]+b[0])/2,cy=(a[1]+b[1])/2;S.px=cx-(cx-W/2-S.px)*k-W/2;S.py=cy-(cy-H*0.52-S.py)*k-H*0.52;S.sc*=k;}
       const cx2=(a[0]+b[0])/2,cy2=(a[1]+b[1])/2;if(lastC){S.px+=cx2-lastC[0];S.py+=cy2-lastC[1];}lastC=[cx2,cy2];lastDist=d;}
   });
