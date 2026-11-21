@@ -17,6 +17,6 @@ Itoigawa-Shizuoka line (central-north): 22%. Nankai Trough: 78%. Offshore faults
 
 At the end, every M4.5+ quake since 1998 piles up along the Pacific plate boundary.
 
-Data: NIED J-SHIS, MLIT, USGS. Faults with unknown dip or depth are estimated and dashed. Positions are approximate.
+Data: J-SHIS, MLIT, USGS. Faults with unknown dip or depth are estimated and dashed. Positions are approximate.
 
 Is there a fault near you?
