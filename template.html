@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>日本の断層の光</title>
+<style>
+:root{--bg:#04060c;--fg:#dfe8f7;--mut:#8b97ad;--line:rgba(160,185,230,.18);--land:#b4d2ff;--sea:#4fdcff;--plate:#ff9a3c;--est:#e08cff;--panel:rgba(10,14,26,.86)}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:"Noto Sans JP","Yu Gothic UI","Hiragino Sans",system-ui,sans-serif;overflow:hidden;-webkit-tap-highlight-color:transparent}
+#c{position:fixed;inset:0;width:100%;height:100%;touch-action:none;display:block}
+#ui{position:fixed;inset:0;pointer-events:none}
+#ui>*{pointer-events:auto}
+#title{position:absolute;left:14px;top:calc(10px + env(safe-area-inset-top));font-size:15px;letter-spacing:.08em;color:#cfe0ff;text-shadow:0 0 12px rgba(120,170,255,.5)}
+#title small{display:block;font-size:11px;color:var(--mut);letter-spacing:.02em;margin-top:2px}
+#bar{position:absolute;left:0;right:0;bottom:0;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:linear-gradient(transparent,rgba(4,6,12,.92) 38%);display:flex;flex-direction:column;gap:8px}
+.row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.chip{border:1px solid var(--line);background:rgba(20,28,48,.7);color:var(--fg);border-radius:999px;padding:6px 11px;font-size:12.5px;cursor:pointer;display:inline-flex;gap:6px;align-items:center;font-family:inherit}
+.chip i{width:9px;height:9px;border-radius:50%;display:inline-block;background:var(--c);box-shadow:0 0 8px var(--c)}
+.chip.off{opacity:.38}
+.chip.on{border-color:rgba(160,200,255,.55)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
+.seg button{background:rgba(20,28,48,.7);color:var(--mut);border:0;padding:6px 13px;font-size:12.5px;cursor:pointer;font-family:inherit}
+.seg button.on{background:#27406e;color:#fff}
+label.sl{display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--mut)}
+input[type=range]{width:110px;accent-color:#6aa8ff}
+select{background:rgba(20,28,48,.85);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:12.5px;max-width:100%;font-family:inherit}
+#panel{position:absolute;right:12px;top:calc(10px + env(safe-area-inset-top));width:min(330px,calc(100vw - 24px));background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:13px 14px;display:none;backdrop-filter:blur(8px);font-size:13px;line-height:1.55;max-height:55vh;overflow:auto}
+#panel h2{margin:0 0 6px;font-size:15px;line-height:1.35;padding-right:22px}
+#panel .x{position:absolute;right:10px;top:8px;background:none;border:0;color:var(--mut);font-size:18px;cursor:pointer}
+#panel dl{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;margin:8px 0 0}
+#panel dt{color:var(--mut)}#panel dd{margin:0}
+.badge{display:inline-block;border:1px dashed var(--est);color:var(--est);border-radius:6px;padding:0 6px;font-size:11.5px;margin-left:4px}
+.tag{display:inline-block;border-radius:6px;padding:0 7px;font-size:11.5px;margin-bottom:6px;color:#04060c}
+.note{color:var(--mut);font-size:11.5px;margin-top:8px}
+#credit{position:absolute;right:10px;top:calc(10px + env(safe-area-inset-top));font-size:10px;color:#5e6a82;text-align:right;max-width:46vw}
+body.video #ui{display:none}
+@media(max-width:759px){#panel{top:auto;bottom:calc(150px + env(safe-area-inset-bottom));left:12px;right:12px;width:auto;max-height:36vh}#credit{display:none}}
+@media(min-width:760px){#bar{left:14px;right:auto;max-width:860px;background:none;padding-bottom:16px}}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ui">
+  <div id="title">日本の断層の光<small>断層ごとの30年発生確率で明るさと脈動が変わる</small></div>
+  <div id="credit"></div>
+  <div id="panel"><button class="x" id="px" aria-label="閉じる">×</button><div id="pbody"></div></div>
+  <div id="bar">
+    <div class="row">
+      <button class="chip on" data-k="land" style="--c:var(--land)"><i></i>陸の活断層</button>
+      <button class="chip on" data-k="sea" style="--c:var(--sea)"><i></i>海域の活断層</button>
+      <button class="chip on" data-k="plate" style="--c:var(--plate)"><i></i>プレート境界</button>
+      <button class="chip on" data-k="est" style="--c:var(--est)"><i></i>推定(補完)断層</button>
+      <button class="chip off" data-k="cat" style="--c:#ffe9a8"><i></i>過去の震源(1998- M4.5+)</button>
+    </div>
+    <div class="row">
+      <div class="seg" id="vseg"><button data-v="3d" class="on">3D</button><button data-v="top">真上</button></div>
+      <label class="sl">深さ倍率 <input id="mult" type="range" min="1" max="5" step="0.5" value="2"><span id="mv">x2</span></label>
+      <select id="sel"><option value="">断層を選ぶ…</option></select>
+    </div>
+  </div>
+</div>
+<script>
+const D=/*__DATA__*/null;
+const VIDEO=/[?&]video=1/.test(location.search);
+if(VIDEO)document.body.classList.add('video');
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+let W=0,H=0,DPR=1;
+function resize(){DPR=VIDEO?1:Math.min(2,window.devicePixelRatio||1);W=window.innerWidth;H=window.innerHeight;cv.width=Math.round(W*DPR);cv.height=Math.round(H*DPR);}
+addEventListener('resize',()=>{resize();});resize();
+const KX=111*Math.cos(35*Math.PI/180),KY=111;
+const COL={land:[176,212,255],sea:[79,220,255],plate:[255,154,60],est:[224,140,255]};
+const TNAME={land:'陸の活断層',sea:'海域の活断層',plate:'プレート境界'};
+// ---------- prepare faults
+const F=D.faults;
+F.forEach((f,i)=>{
+  f.id=i;
+  if(f.pts){f.P=f.pts.map(p=>[(p[0]-136)*KX,(p[1]-35)*KY,p[2]]);let sx=0,sy=0;f.P.forEach(p=>{sx+=p[0];sy+=p[1]});f.cx=sx/f.P.length;f.cy=sy/f.P.length;}
+  else{f.Q=f.q.map(q=>q.map(p=>[(p[0]-136)*KX,(p[1]-35)*KY,p[2]]));let sx=0,sy=0,n=0;f.Q.forEach(q=>q.forEach(p=>{sx+=p[0];sy+=p[1];n++}));f.cx=sx/n;f.cy=sy/n;}
+  const p=f.p;const t=p==null?0.0:Math.min(1,Math.max(0,(Math.log10(Math.max(p,1e-5))+5)/5));
+  f.br=p==null?0.2:0.12+0.88*Math.pow(t,1.6);
+  f.amp=0.12+0.5*f.br;f.fq=0.22+0.8*f.br;f.ph=(i*2.399)%6.283;
+});
+const order=[...F].sort((a,b)=>a.cy-b.cy);order.forEach((f,i)=>f.ton=0.2+4.5*i/F.length);
+// ---------- catalog
+const EV=D.ev.map(e=>({d:e[0],x:(e[1]/100-136)*KX,y:(e[2]/100-35)*KY,z:e[3],m:e[4]/10}));
+const EVMAXD=EV[EV.length-1].d;
+// ---------- state
+const S={az:-0.3,el:0.95,x:0,y:0,sc:0.5,px:0,py:0,mult:2,show:{land:1,sea:1,plate:1,est:1,cat:0},view:'3d',sel:null};
+function proj(x,y,z,o){
+  const c=Math.cos(o.az),s=Math.sin(o.az),dx=x-o.x,dy=y-o.y;
+  const x1=dx*c+dy*s,y1=-dx*s+dy*c;
+  return [W/2+o.px+o.sc*x1, H*0.52+o.py+o.sc*(-y1*Math.sin(o.el)+z*o.mult*Math.cos(o.el))];
+}
+const coast=D.coast.map(r=>r.map(p=>[(p[0]-136)*KX,(p[1]-35)*KY]));
+// sprites
+function sprite(rgb){const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d');const gr=g.createRadialGradient(32,32,0,32,32,32);gr.addColorStop(0,`rgba(${rgb},1)`);gr.addColorStop(.25,`rgba(${rgb},.55)`);gr.addColorStop(1,`rgba(${rgb},0)`);g.fillStyle=gr;g.fillRect(0,0,64,64);return c;}
+const SP=[sprite('255,238,180'),sprite('255,190,120'),sprite('200,180,255')];
+const dcls=z=>z<35?0:(z<100?1:2);
+// ---------- drawing
+function fmtP(p){if(p==null)return null;const v=p*100;return v>=10?v.toFixed(0)+'%':v>=1?v.toFixed(1)+'%':v>=0.01?v.toFixed(2)+'%':'0.01%未満';}
+function colOf(f){return f.i?COL.est:COL[f.t];}
+function visible(f){const sh=S.show;if(!sh[f.t])return false;if(f.i&&!sh.est)return false;return true;}
+function drawFault(f,k,o,sel){
+  const base=f.i?COL[f.t]:COL[f.t];
+  const dim=f.i?0.55:1;
+  const rgb=base.join(',');
+  const kb=Math.min(1.6,k*dim);
+  if(f.P){
+    ctx.fillStyle=`rgba(${rgb},${Math.min(.9,.5*kb*(0.35+f.br))})`;
+    const r=Math.min(3.4,Math.max(1.1,o.sc*3.2));
+    for(const p of f.P){const q=proj(p[0],p[1],p[2],o);ctx.fillRect(q[0]-r/2,q[1]-r/2,r,r);}
+    return;
+  }
+  const a=Math.min(1,kb*(0.28+0.72*f.br));
+  // sub-surface planes
+  ctx.beginPath();
+  for(const q of f.Q){const p0=proj(q[0][0],q[0][1],q[0][2],o),p1=proj(q[1][0],q[1][1],q[1][2],o),p2=proj(q[2][0],q[2][1],q[2][2],o),p3=proj(q[3][0],q[3][1],q[3][2],o);ctx.moveTo(p0[0],p0[1]);ctx.lineTo(p1[0],p1[1]);ctx.lineTo(p2[0],p2[1]);ctx.lineTo(p3[0],p3[1]);ctx.closePath();}
+  ctx.fillStyle=`rgba(${rgb},${(0.05+0.14*f.br)*kb*(f.i?0.7:1)*(sel?2.2:1)})`;ctx.fill();
+  ctx.lineWidth=1;ctx.strokeStyle=`rgba(${rgb},${0.22*a})`;ctx.setLineDash([]);
+  ctx.beginPath();for(const q of f.Q){const p2=proj(q[2][0],q[2][1],q[2][2],o),p3=proj(q[3][0],q[3][1],q[3][2],o);ctx.moveTo(p3[0],p3[1]);ctx.lineTo(p2[0],p2[1]);}ctx.stroke();
+  // trace
+  ctx.beginPath();
+  for(const q of f.Q){const p0=proj(q[0][0],q[0][1],q[0][2],o),p1=proj(q[1][0],q[1][1],q[1][2],o);ctx.moveTo(p0[0],p0[1]);ctx.lineTo(p1[0],p1[1]);}
+  ctx.lineCap='round';
+  ctx.setLineDash([]);ctx.lineWidth=(VIDEO?5:4)+(sel?3:0);ctx.strokeStyle=`rgba(${rgb},${0.13*a})`;ctx.stroke();
+  if(f.i)ctx.setLineDash([4,6]);
+  ctx.lineWidth=(VIDEO?1.5:1.2)+(sel?1:0);ctx.strokeStyle=`rgba(${rgb},${Math.min(1,0.25+0.85*a)})`;ctx.stroke();
+  ctx.setLineDash([]);
+}
+function drawBase(o){
+  const g=ctx.createRadialGradient(W/2,H*0.5,0,W/2,H*0.5,Math.max(W,H)*0.75);g.addColorStop(0,'#0a1020');g.addColorStop(1,'#03050a');
+  ctx.globalCompositeOperation='source-over';ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle='rgba(130,155,200,.40)';ctx.lineWidth=.8;
+  ctx.beginPath();for(const r of coast){for(let i=0;i<r.length;i++){const q=proj(r[i][0],r[i][1],0,o);i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]);}}
+  ctx.stroke();
+}
+function drawCatStatic(o){
+  ctx.globalCompositeOperation='lighter';
+  const cols=['rgba(255,233,168,','rgba(255,170,110,','rgba(190,170,255,'];
+  for(let c=0;c<3;c++){ctx.fillStyle=cols[c]+'0.42)';
+    for(const e of EV){if(dcls(e.z)!==c)continue;const q=proj(e.x,e.y,e.z,o);const r=Math.max(.6,(0.5+(e.m-4.5)*0.7)*Math.min(1.8,Math.max(.7,o.sc*1.6)));ctx.fillRect(q[0]-r,q[1]-r,2*r,2*r);}}
+}
+function drawCatTime(o,day,flashDays){
+  ctx.globalCompositeOperation='lighter';
+  const cols=['rgba(255,233,168,','rgba(255,170,110,','rgba(190,170,255,'];
+  let n=0;while(n<EV.length&&EV[n].d<=day)n++;
+  for(let c=0;c<3;c++){ctx.fillStyle=cols[c]+'0.34)';
+    for(let i=0;i<n;i++){const e=EV[i];if(dcls(e.z)!==c)continue;const q=proj(e.x,e.y,e.z,o);const r=Math.max(.8,(0.6+(e.m-4.5)*0.8)*Math.min(2,Math.max(.8,o.sc*1.8)));ctx.fillRect(q[0]-r,q[1]-r,2*r,2*r);}}
+  for(let i=n-1;i>=0;i--){const e=EV[i];const age=day-e.d;if(age>flashDays)break;const u=1-age/flashDays;const q=proj(e.x,e.y,e.z,o);const R=(4+Math.pow(2,(e.m-4.5)*0.9)*3.4)*Math.min(1.6,Math.max(.9,o.sc*2.0));ctx.globalAlpha=Math.min(1,u*u*(e.m>=6.5?1.2:0.8));ctx.drawImage(SP[dcls(e.z)],q[0]-R,q[1]-R,2*R,2*R);}
+  ctx.globalAlpha=1;
+  return n;
+}
+function frame(o,tt,env){
+  drawBase(o);
+  ctx.globalCompositeOperation='lighter';
+  for(const f of F){
+    if(!visible(f))continue;
+    const u=tt-f.ton;if(u<0)continue;
+    const ramp=Math.min(1,u/0.45)*(1+1.4*Math.exp(-u*2.8));
+    const pulse=1+f.amp*Math.sin(6.283*f.fq*tt+f.ph);
+    let k=ramp*pulse/(1+f.amp*0.4);
+    if(env&&env.fk)k*=env.fk(f);
+    drawFault(f,k,o,S.sel===f);
+  }
+  ctx.globalCompositeOperation='source-over';
+}
+// ---------- live mode
+let t0=performance.now();
+function fitBox(x0,x1,y0,y1,el,az,maxd,pad){
+  pad=pad==null?150:pad;const sx=(x1-x0)+pad,sy=(y1-y0)+pad;
+  const ca=Math.abs(Math.cos(az)),sa=Math.abs(Math.sin(az));
+  const spx=sx*ca+sy*sa,spy=sx*sa+sy*ca;
+  const sc=Math.min(W*0.8/spx,H*0.62/(spy*Math.sin(el)+maxd*S.mult*Math.cos(el)));
+  return {x:(x0+x1)/2,y:(y0+y1)/2,sc};
+}
+function bboxOf(list){let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;list.forEach(f=>{const pts=f.P||f.Q.flat();pts.forEach(p=>{x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);y0=Math.min(y0,p[1]);y1=Math.max(y1,p[1]);});});return [x0,x1,y0,y1];}
+function homeCam(){
+  const el=S.view==='top'?Math.PI/2:0.95;S.el=el;S.az=S.view==='top'?0:-0.3;
+  const bb=[(129.5-136)*KX,(146-136)*KX,(31-35)*KY,(45.6-35)*KY];
+  const c=fitBox(bb[0],bb[1],bb[2],bb[3],el,S.az,40);S.x=c.x;S.y=c.y;S.sc=c.sc*(W<600?1.0:1.0);S.px=0;S.py=0;
+}
+let anim=null;
+function flyTo(list){
+  const bb=bboxOf(list);const c=fitBox(bb[0],bb[1],bb[2],bb[3],S.el,S.az,40);
+  const from={x:S.x,y:S.y,sc:S.sc,px:S.px,py:S.py};const ts=performance.now();
+  anim=(now)=>{const u=Math.min(1,(now-ts)/700),e=u*u*(3-2*u);S.x=from.x+(c.x-from.x)*e;S.y=from.y+(c.y-from.y)*e;S.sc=from.sc+(c.sc-from.sc)*e;S.px=from.px*(1-e);S.py=from.py*(1-e);if(u>=1)anim=null;};
+}
+function liveLoop(){
+  const now=performance.now();if(anim)anim(now);
+  const tt=(now-t0)/1000;
+  S.mult=+document.getElementById('mult').value;
+  frame(S,tt+0.0,null);
+  if(S.show.cat){drawCatStatic(S);ctx.globalCompositeOperation='source-over';}
+  requestAnimationFrame(liveLoop);
+}
+// ---------- UI
+function setP(f){
+  const pb=document.getElementById('pbody'),pn=document.getElementById('panel');
+  if(!f){pn.style.display='none';return;}
+  const tp=f.i?'est':f.t;const rgb=colOf(f).join(',');
+  const pr=fmtP(f.p);
+  let h=`<span class="tag" style="background:rgb(${rgb})">${TNAME[f.t]}${f.i?' / 推定':''}</span><h2>${f.n}</h2><dl>`;
+  h+=`<dt>長さ</dt><dd>約${f.L} km</dd>`;
+  h+=`<dt>想定M</dt><dd>${f.M!=null?'M'+(+f.M).toFixed(1):'―'}</dd>`;
+  h+=`<dt>30年発生確率</dt><dd>${pr||'未公表'}</dd>`;
+  h+=`<dt>最後の活動</dt><dd>${f.e?f.e+'(J-SHIS 2024年版の評価)':'不明/未公表'}</dd>`;
+  h+=`<dt>傾斜</dt><dd>${f.d}°${f.i?'<span class="badge">推定</span>':''}</dd>`;
+  h+=`<dt>上端〜下端</dt><dd>${f.a}〜${f.b} km${f.i?'<span class="badge">推定</span>':''}</dd></dl>`;
+  if(f.i)h+=`<div class="note">地表以外の断層面の情報が乏しいため、上端2km・下端15km・傾斜60度で補完した推定の形です(J-SHISの仮定値: 傾斜${f.ja.dip}°・${f.ja.top_km}〜${f.ja.bottom_km}km)。地図上では暗い点線で表示します。</div>`;
+  if(f.no)h+=`<div class="note">${f.no}。</div>`;
+  if(f.t==='plate')h+=`<div class="note">想定の中で最も大きいパターンの断層面を点で表示しています(上端・下端は面の最も浅い/深い点)。</div>`;
+  h+=`<div class="note">出典: ${f.s}</div>`;
+  pb.innerHTML=h;pn.style.display='block';
+}
+function select(f,fly){S.sel=f;setP(f);document.getElementById('sel').value=f?f.id:'';if(f&&fly)flyTo([f]);}
+document.getElementById('px').onclick=()=>select(null);
+function hit(mx,my){
+  let best=null,bd=1e9;const R=(window.matchMedia('(pointer:coarse)').matches?26:14);
+  for(const f of F){
+    if(!visible(f))continue;
+    if(f.P){for(const p of f.P){const q=proj(p[0],p[1],p[2],S);const d=Math.hypot(q[0]-mx,q[1]-my)+8;if(d<bd){bd=d;best=f;}}continue;}
+    for(const q of f.Q){
+      const a=proj(q[0][0],q[0][1],q[0][2],S),b=proj(q[1][0],q[1][1],q[1][2],S);
+      const vx=b[0]-a[0],vy=b[1]-a[1],l2=vx*vx+vy*vy||1;let u=((mx-a[0])*vx+(my-a[1])*vy)/l2;u=Math.max(0,Math.min(1,u));
+      let d=Math.hypot(a[0]+u*vx-mx,a[1]+u*vy-my);
+      const c=[0,1,2,3].map(i=>proj(q[i][0],q[i][1],q[i][2],S));
+      let ins=false;for(let i=0,j=3;i<4;j=i++){if(((c[i][1]>my)!==(c[j][1]>my))&&(mx<(c[j][0]-c[i][0])*(my-c[i][1])/(c[j][1]-c[i][1])+c[i][0]))ins=!ins;}
+      if(ins)d=Math.min(d,R*0.7);
+      if(d<bd){bd=d;best=f;}
+    }
+  }
+  return bd<=R?best:null;
+}
+function initUI(){
+  const sel=document.getElementById('sel');
+  const groups={land:'陸の活断層',sea:'海域の活断層',plate:'プレート境界'};
+  for(const t of ['plate','land','sea']){
+    const og=document.createElement('optgroup');og.label=groups[t];
+    F.filter(f=>f.t===t).sort((a,b)=>(b.p||0)-(a.p||0)).forEach(f=>{const o=document.createElement('option');o.value=f.id;o.textContent=f.n+(f.p!=null?'  '+fmtP(f.p):'')+(f.i?' (推定)':'');og.appendChild(o);});
+    sel.appendChild(og);
+  }
+  sel.onchange=()=>{const v=sel.value;select(v===''?null:F[+v],true);};
+  document.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{const k=b.dataset.k;S.show[k]=S.show[k]?0:1;b.classList.toggle('off',!S.show[k]);b.classList.toggle('on',!!S.show[k]);});
+  document.querySelectorAll('#vseg button').forEach(b=>b.onclick=()=>{S.view=b.dataset.v;document.querySelectorAll('#vseg button').forEach(x=>x.classList.toggle('on',x===b));
+    const el=S.view==='top'?Math.PI/2:0.95,az=S.view==='top'?0:-0.3;const f={el:S.el,az:S.az},ts=performance.now();const old=anim;
+    anim=(now)=>{const u=Math.min(1,(now-ts)/600),e=u*u*(3-2*u);S.el=f.el+(el-f.el)*e;S.az=f.az+(az-f.az)*e;if(u>=1)anim=null;};});
+  const m=document.getElementById('mult');m.oninput=()=>{document.getElementById('mv').textContent='x'+(+m.value);};
+  document.getElementById('credit').textContent='J-SHIS(防災科研) / 国土交通省 日本海検討会 / USGS / Natural Earth';
+  // pointer
+  const ptrs=new Map();let moved=0,last=null,lastDist=0,downT=0;
+  cv.addEventListener('pointerdown',e=>{cv.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,[e.clientX,e.clientY]);moved=0;downT=performance.now();if(ptrs.size===2){const [a,b]=[...ptrs.values()];lastDist=Math.hypot(a[0]-b[0],a[1]-b[1]);}});
+  cv.addEventListener('pointermove',e=>{
+    if(!ptrs.has(e.pointerId))return;const p=ptrs.get(e.pointerId);const dx=e.clientX-p[0],dy=e.clientY-p[1];ptrs.set(e.pointerId,[e.clientX,e.clientY]);moved+=Math.abs(dx)+Math.abs(dy);anim=null;
+    if(ptrs.size===1){if(S.view==='top'||e.shiftKey||e.buttons===2){S.px+=dx;S.py+=dy;}else{S.az+=dx*0.006;S.el=Math.max(0.15,Math.min(Math.PI/2,S.el+dy*0.005));}}
+    else if(ptrs.size===2){const [a,b]=[...ptrs.values()];const d=Math.hypot(a[0]-b[0],a[1]-b[1]);if(lastDist){const k=d/lastDist;const cx=(a[0]+b[0])/2,cy=(a[1]+b[1])/2;S.px=cx-(cx-W/2-S.px)*k-W/2;S.py=cy-(cy-H*0.52-S.py)*k-H*0.52;S.sc*=k;}lastDist=d;}
+  });
+  const up=e=>{if(ptrs.size===1&&moved<6&&performance.now()-downT<500){const f=hit(e.clientX,e.clientY);select(f,false);}ptrs.delete(e.pointerId);lastDist=0;};
+  cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',e=>{ptrs.delete(e.pointerId);});
+  cv.addEventListener('wheel',e=>{e.preventDefault();const k=Math.exp(-e.deltaY*0.0015);S.px=e.clientX-W/2-(e.clientX-W/2-S.px)*k;S.py=e.clientY-H*0.52-(e.clientY-H*0.52-S.py)*k;S.sc*=k;},{passive:false});
+  cv.addEventListener('contextmenu',e=>e.preventDefault());
+}
+// ---------- video mode
+function grp(pred){return F.filter(pred);}
+const G={
+  ov:null,
+  mtl:grp(f=>f.n.includes('中央構造線')),
+  itg:grp(f=>f.n.includes('糸魚川')),
+  noto:grp(f=>f.n.includes('能登半島周辺海域')||f.n.includes('能登半島地震')||f.n.includes('邑知潟')),
+  nank:grp(f=>f.n.includes('南海トラフ'))
+};
+const KEYS=[[0,'ov',-25,55],[5,'ov',0,55],[6.6,'mtl',12,40],[9.8,'mtl',24,36],[11.2,'itg',-28,40],[14.2,'itg',-14,35],[15.6,'noto',14,42],[19.2,'noto',28,38],[20.6,'nank',-12,46],[24,'nank',8,42],[27.5,'ov',0,56],[32,'ov',18,58]];
+const CAPS=[
+ {g:'mtl',a:6.4,b:10.2,n:'中央構造線断層帯',pf:f=>Math.max(...G.mtl.map(x=>x.p||0))},
+ {g:'itg',a:11.0,b:14.7,n:'糸魚川―静岡構造線断層帯',pf:f=>Math.max(...G.itg.map(x=>x.p||0))},
+ {g:'noto',a:15.4,b:19.6,n:'能登半島周辺の海域断層',pf:null},
+ {g:'nank',a:20.4,b:24.0,n:'南海トラフ',pf:f=>G.nank[0].p}
+];
+const CATA=24.0,CATB=30.8;
+function camAt(t){
+  S.mult=2;
+  let i=0;while(i<KEYS.length-2&&t>KEYS[i+1][0])i++;
+  const A=KEYS[i],B=KEYS[i+1];
+  const cA=keyCam(A),cB=keyCam(B);
+  let u=Math.max(0,Math.min(1,(t-A[0])/(B[0]-A[0])));
+  const e=(A[1]!==B[1])?u*u*(3-2*u):u;
+  const L=(a,b)=>a+(b-a)*e;
+  return {x:L(cA.x,cB.x),y:L(cA.y,cB.y),sc:Math.exp(L(Math.log(cA.sc),Math.log(cB.sc))),az:L(cA.az,cB.az),el:L(cA.el,cB.el),px:0,py:0,mult:2};
+}
+const KC=new Map();
+function keyCam(k){
+  const id=k.join('_');if(KC.has(id))return KC.get(id);
+  const az=k[2]*Math.PI/180,el=k[3]*Math.PI/180;let bb;
+  if(k[1]==='ov')bb=[(129.8-136)*KX,(145.6-136)*KX,(31.2-35)*KY,(45.4-35)*KY];else bb=bboxOf(G[k[1]]);
+  S.mult=2;const c=fitBox(bb[0],bb[1],bb[2],bb[3],el,az,k[1]==='ov'?40:30,k[1]==='ov'?30:150);
+  if(k[1]==='itg'||k[1]==='mtl'){c.sc*=1.0;}
+  const r={x:c.x,y:c.y,sc:c.sc*(k[1]==='ov'?1.22:1),az,el};KC.set(id,r);return r;
+}
+const sm=(a,b,t)=>{const u=Math.max(0,Math.min(1,(t-a)/(b-a)));return u*u*(3-2*u);};
+function renderVideo(t){
+  const cam=camAt(t);
+  // focus weights
+  let fw={};let any=0;
+  for(const c of CAPS){const w=sm(c.a,c.a+0.6,t)*(1-sm(c.b-0.6,c.b,t));fw[c.g]=w;any=Math.max(any,w);}
+  const catW=sm(CATA,CATA+1.0,t);
+  const env={fk:f=>{
+    let k=1;
+    let inF=0;for(const c of CAPS){if(fw[c.g]>0&&G[c.g].includes(f))inF=Math.max(inF,fw[c.g]);}
+    k*=(1+1.1*inF)*(1-0.72*any*(1-inF));
+    k*=1-0.35*catW;
+    return k;}};
+  frame(cam,t,env);
+  if(t>=CATA){
+    const p=Math.min(1,(t-CATA)/(CATB-CATA));const day=EVMAXD*p;
+    const n=drawCatTime(cam,day,EVMAXD/(CATB-CATA)*0.55);
+    ctx.globalCompositeOperation='source-over';
+    const yr=1998+day/365.25;
+    ctx.fillStyle='rgba(190,205,235,.62)';ctx.font='500 30px "Noto Sans JP","Yu Gothic UI",sans-serif';ctx.textAlign='right';ctx.fillText(String(Math.min(2026,Math.floor(yr))),W-56,H-56);
+  }
+  ctx.globalCompositeOperation='source-over';
+  for(const c of CAPS){
+    const w=sm(c.a,c.a+0.5,t)*(1-sm(c.b-0.5,c.b,t));if(w<=0.01)continue;
+    const pv=c.pf?c.pf():null;
+    ctx.globalAlpha=w;ctx.textAlign='left';
+    const x=64,y=H-120;
+    const gr=ctx.createLinearGradient(0,H-260,0,H);gr.addColorStop(0,'rgba(3,5,10,0)');gr.addColorStop(1,'rgba(3,5,10,.7)');ctx.globalAlpha=w*.9;ctx.fillStyle=gr;ctx.fillRect(0,H-260,W*0.7,260);ctx.globalAlpha=w;
+    ctx.fillStyle='#eaf2ff';ctx.font='600 52px "Noto Sans JP","Yu Gothic UI",sans-serif';ctx.fillText(c.n,x,y);
+    ctx.fillStyle='#9fc2ff';ctx.font='400 32px "Noto Sans JP","Yu Gothic UI",sans-serif';
+    ctx.fillText(pv==null?'30年以内の発生確率は未公表':('30年以内の発生確率 '+fmtP(pv)+(c.g==='mtl'?'(区間別の最大)':c.g==='itg'?'(中北部)':'')),x,y+50);
+    ctx.globalAlpha=1;
+  }
+  // fade in/out
+  const fi=1-sm(0,0.5,t),fo=sm(31.4,32,t);const fa=Math.max(fi,fo);
+  if(fa>0){ctx.fillStyle=`rgba(3,5,10,${fa})`;ctx.fillRect(0,0,W,H);}
+}
+window.__lab={still:(lon,lat,sc,mult)=>{S.mult=mult||1;frame({x:(lon-136)*KX,y:(lat-35)*KY,sc,az:0,el:Math.PI/2,px:0,py:0,mult:S.mult},99,null);return true;},render:t=>{renderVideo(t);return true;},dur:32,ready:true,F,G,S};
+if(!VIDEO){initUI();homeCam();requestAnimationFrame(liveLoop);}
+</script>
+</body>
+</html>
