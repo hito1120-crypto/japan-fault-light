@@ -345,7 +345,7 @@ function renderVideo(t){
     ctx.fillText(pv==null?'30年以内の発生確率は未公表':('30年以内の発生確率 '+fmtP(pv)+(c.g==='mtl'?'(区間別の最大)':c.g==='itg'?'(中北部)':'')),x,y+50);
     ctx.globalAlpha=1;
   }
-  { const cw=sm(29.6,30.4,t); if(cw>0){ctx.globalAlpha=cw*.75;ctx.fillStyle='#9fb0cc';ctx.textAlign='left';ctx.font='400 22px "Noto Sans JP","Yu Gothic UI",sans-serif';ctx.fillText('出典: 防災科研 J-SHIS(加工) / 国土交通省 日本海検討会資料(加工) / USGS M4.5以上 1998年以降 / Natural Earth',64,H-56);ctx.fillText('海溝寄りの想定断層は未収録。補完した断層は推定。位置・深さは目安',64,H-28);ctx.globalAlpha=1;} }
+  { const cw=sm(29.6,30.4,t); if(cw>0){ctx.globalAlpha=cw*.82;ctx.fillStyle='rgb(3,5,10)';ctx.fillRect(0,H-96,W*0.66,96);ctx.globalAlpha=cw*.9;ctx.fillStyle='#9fb0cc';ctx.textAlign='left';ctx.font='400 22px "Noto Sans JP","Yu Gothic UI",sans-serif';ctx.fillText('出典: 防災科研 J-SHIS(加工) / 国土交通省 日本海検討会資料(加工) / USGS M4.5以上 1998年以降 / Natural Earth',64,H-56);ctx.fillText('海溝寄りの想定断層は未収録。補完した断層は推定。位置・深さは目安',64,H-28);ctx.globalAlpha=1;} }
   // fade in/out
   const fi=1-sm(0,0.5,t),fo=sm(31.4,32,t);const fa=Math.max(fi,fo);
   if(fa>0){ctx.fillStyle=`rgba(3,5,10,${fa})`;ctx.fillRect(0,0,W,H);}

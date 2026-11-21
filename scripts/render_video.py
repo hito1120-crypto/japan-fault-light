@@ -12,6 +12,6 @@ def work(ids):
             pg.screenshot(path=f'{ROOT}/frames/f{i:04d}.jpg',type='jpeg',quality=92)
         b.close()
 if __name__=='__main__':
-    ids=list(range(N))
+    ids=list(range(int(sys.argv[1]) if len(sys.argv)>1 else 0,N))
     with mp.Pool(4) as pool: pool.map(work,[ids[k::4] for k in range(4)])
     print('done',len(os.listdir(ROOT+'/frames')))
