@@ -23,6 +23,28 @@ for f in adm['features']:
         p=p.simplify(0.008)
         if p.is_empty or p.geom_type!='Polygon': continue
         borders.append([[round(x,2),round(y,2)] for x,y in p.exterior.coords])
+
+import numpy as np,contourpy
+def plate_grid(code,st=0.15):
+    # Cabinet Office (via J-SHIS) assumed-source-zone interface points -> 0.15deg depth grid -> depth contours (no interpolation outside data)
+    d=json.load(open('data/raw/flt/%s.json'%code,encoding='utf8'))
+    pts=np.vstack([np.array(f['geometry']['coordinates']) for f in d['features']])
+    x0,y0=pts[:,0].min(),pts[:,1].min()
+    ix=np.floor((pts[:,0]-x0)/st).astype(int);iy=np.floor((pts[:,1]-y0)/st).astype(int)
+    nx,ny=ix.max()+1,iy.max()+1
+    S=np.zeros((ny,nx));N=np.zeros((ny,nx));np.add.at(S,(iy,ix),pts[:,2]);np.add.at(N,(iy,ix),1)
+    Z=np.where(N>0,S/np.maximum(N,1),np.nan)
+    xs=x0+(np.arange(nx)+0.5)*st;ys=y0+(np.arange(ny)+0.5)*st
+    cells=[[round(float(xs[i]),3),round(float(ys[j]),3),round(float(Z[j,i]),1)] for j in range(ny) for i in range(nx) if N[j,i]>0]
+    zm=np.ma.masked_invalid(Z);gen=contourpy.contour_generator(xs,ys,zm)
+    cont=[]
+    lo,hi=np.nanmin(Z),np.nanmax(Z)
+    for lev in range(5,int(hi)+1,5):
+        if lev<=lo:continue
+        ls=gen.lines(lev)
+        ch=[[[round(float(a),3),round(float(b),3)] for a,b in l] for l in ls if len(l)>=3]
+        if ch:cont.append(dict(d=lev,ch=ch))
+    return cells,cont
 faults=[]
 for f in F:
     p=f['properties'];g=f['geometry']
@@ -30,7 +52,9 @@ for f in F:
     if p.get('note'):o['no']=p['note']
     if p.get('jshis_assumed'):o['ja']=p['jshis_assumed']
     if g['type']=='MultiPoint':
-        o['pts']=[[round(a,2),round(b,2),round(c,0)] for a,b,c in g['coordinates']]
+        code=p['source'].split()[2]
+        cells,cont=plate_grid(code)
+        o['pts']=cells;o['ct']=cont
     else:
         o['q']=[[[round(x,2),round(y,2),round(z,0)] for x,y,z in poly[0][:4]] for poly in g['coordinates']]
     faults.append(o)
@@ -42,6 +66,8 @@ for t,la,lo,de,m in cat:
     d=datetime.datetime.strptime(t[:19],'%Y-%m-%dT%H:%M:%S')
     ev.append([round((d-t0).total_seconds()/86400),round(lo*100),round(la*100),round(de),round(m*10)])
 ev.sort()
+pm=json.load(open('data/raw/plate_mesh.json'))
+plate=dict(glon=pm['glon'],glat=pm['glat'],PAC=[[None if v is None else round(v,1) for v in r] for r in pm['PAC']],PHS=[[None if v is None else round(v,1) for v in r] for r in pm['PHS']])
 pm=json.load(open('data/raw/plate_mesh.json'))
 plate=dict(glon=pm['glon'],glat=pm['glat'],PAC=[[None if v is None else round(v,1) for v in r] for r in pm['PAC']],PHS=[[None if v is None else round(v,1) for v in r] for r in pm['PHS']])
 data=dict(faults=faults,coast=rings,borders=borders,ev=ev,plate=plate)
