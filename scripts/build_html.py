@@ -22,7 +22,7 @@ for f in F:
     if g['type']=='MultiPoint':
         o['pts']=[[round(a,2),round(b,2),round(c,0)] for a,b,c in g['coordinates']]
     else:
-        o['q']=[[[round(x,3),round(y,3),round(z,1)] for x,y,z in poly[0][:4]] for poly in g['coordinates']]
+        o['q']=[[[round(x,2),round(y,2),round(z,0)] for x,y,z in poly[0][:4]] for poly in g['coordinates']]
     faults.append(o)
 cat=json.load(open('data/raw/usgs_m45.json'))
 t0=datetime.datetime(1998,1,1)

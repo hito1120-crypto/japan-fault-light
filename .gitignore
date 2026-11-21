@@ -3,3 +3,4 @@ frames/
 scratch/
 site/
 __pycache__/
+data/faults.geojson
