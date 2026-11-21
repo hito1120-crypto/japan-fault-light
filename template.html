@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>日本の断層の光</title>
 <style>
-:root{--bg:#04060c;--fg:#dfe8f7;--mut:#8b97ad;--line:rgba(160,185,230,.18);--land:#b4d2ff;--sea:#4fdcff;--plate:#ff9a3c;--est:#e08cff;--panel:rgba(10,14,26,.86)}
+:root{--bg:#04060c;--fg:#dfe8f7;--mut:#8b97ad;--line:rgba(160,185,230,.18);--land:#b4d2ff;--sea:#4fdcff;--plate:#8cbeff;--est:#e08cff;--panel:rgba(10,14,26,.86)}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:"Noto Sans JP","Yu Gothic UI","Hiragino Sans",system-ui,sans-serif;overflow:hidden;-webkit-tap-highlight-color:transparent}
 #c{position:fixed;inset:0;width:100%;height:100%;touch-action:none;display:block}
@@ -52,7 +52,7 @@ body.video #ui{display:none}
     <div class="row">
       <button class="chip on" data-k="land" style="--c:var(--land)"><i></i>陸の活断層</button>
       <button class="chip on" data-k="sea" style="--c:var(--sea)"><i></i>海域の活断層</button>
-      <button class="chip on" data-k="plate" style="--c:var(--plate)"><i></i>プレート境界</button>
+      <button class="chip on" data-k="plate" style="--c:var(--plate)"><i></i>プレート(格子)</button>
       <button class="chip on" data-k="est" style="--c:var(--est)"><i></i>推定(補完)断層</button>
       <button class="chip off" data-k="cat" style="--c:#ffe9a8"><i></i>過去の震源(1998- M4.5+)</button>
     </div>
@@ -63,7 +63,7 @@ body.video #ui{display:none}
       <select id="sel"><option value="">断層を選ぶ…</option></select>
     </div>
     <details id="notes"><summary>出典・注記</summary>
-      <p>出典: 防災科学技術研究所 J-SHIS(地震活動モデル情報API 2024年版)を加工して作成。国土交通省「日本海における大規模地震に関する調査検討会」データ集②(公共データ利用規約 第1.0版に準拠)を加工して作成。震源: USGS ComCat。海岸線: Natural Earth。国・防災科研が作成・監修したものではありません。</p>
+      <p>出典: 防災科学技術研究所 J-SHIS(地震活動モデル情報API 2024年版)を加工して作成。国土交通省「日本海における大規模地震に関する調査検討会」データ集②(公共データ利用規約 第1.0版に準拠)を加工して作成。プレート面: 岩崎ほか(2015)モデル(東京大学地震研究所)の格子。震源: USGS ComCat。海岸線・県境: Natural Earth。国・防災科研が作成・監修したものではありません。</p>
       <p>注記: 海溝寄りの想定断層は未収録。震源はUSGSのM4.5以上(1998年以降)。能登沖の海域断層は国交省PDFの表から再構成したもので、発生確率は未公表。補完した断層(傾斜・深さが不明なもの)は推定で、暗い点線。形状・位置・深さは目安です。</p>
     </details>
   </div>
@@ -77,7 +77,7 @@ let W=0,H=0,DPR=1;
 function resize(){DPR=VIDEO?1:Math.min(2,window.devicePixelRatio||1);W=window.innerWidth;H=window.innerHeight;cv.width=Math.round(W*DPR);cv.height=Math.round(H*DPR);}
 addEventListener('resize',()=>{resize();});resize();
 const KX=111*Math.cos(35*Math.PI/180),KY=111;
-const COL={land:[176,212,255],sea:[79,220,255],plate:[255,154,60],est:[224,140,255]};
+const COL={land:[176,212,255],sea:[79,220,255],plate:[140,190,255],est:[224,140,255]};
 const TNAME={land:'陸の活断層',sea:'海域の活断層',plate:'プレート境界'};
 // ---------- prepare faults
 const F=D.faults;
@@ -86,7 +86,7 @@ F.forEach((f,i)=>{
   if(f.pts){f.P=f.pts.map(p=>[(p[0]-136)*KX,(p[1]-35)*KY,p[2]]);let sx=0,sy=0;f.P.forEach(p=>{sx+=p[0];sy+=p[1]});f.cx=sx/f.P.length;f.cy=sy/f.P.length;}
   else{f.Q=f.q.map(q=>q.map(p=>[(p[0]-136)*KX,(p[1]-35)*KY,p[2]]));let sx=0,sy=0,n=0;f.Q.forEach(q=>q.forEach(p=>{sx+=p[0];sy+=p[1];n++}));f.cx=sx/n;f.cy=sy/n;}
   const p=f.p;const t=p==null?0.0:Math.min(1,Math.max(0,(Math.log10(Math.max(p,1e-5))+5)/5));
-  f.br=p==null?0.2:0.12+0.88*Math.pow(t,1.6);
+  f.br=p==null?0.32:0.12+0.88*Math.pow(t,1.6);
   f.amp=0.12+0.5*f.br;f.fq=0.22+0.8*f.br;f.ph=(i*2.399)%6.283;
 });
 const order=[...F].sort((a,b)=>a.cy-b.cy);order.forEach((f,i)=>f.ton=0.2+4.5*i/F.length);
@@ -110,32 +110,93 @@ const dcls=z=>z<35?0:(z<100?1:2);
 function fmtP(p){if(p==null)return null;const v=p*100;return v>=10?v.toFixed(0)+'%':v>=1?v.toFixed(1)+'%':v>=0.01?v.toFixed(2)+'%':'0.01%未満';}
 function colOf(f){return f.i?COL.est:COL[f.t];}
 function visible(f){const sh=S.show;if(!sh[f.t])return false;if(f.i&&!sh.est)return false;return true;}
-function drawFault(f,k,o,sel){
-  const base=f.i?COL[f.t]:COL[f.t];
-  const dim=f.i?0.55:1;
-  const rgb=base.join(',');
-  const kb=Math.min(1.6,k*dim);
-  if(f.P){
-    ctx.fillStyle=`rgba(${rgb},${Math.min(.9,.5*kb*(0.35+f.br))})`;
-    const r=Math.min(3.4,Math.max(1.1,o.sc*3.2));
-    for(const p of f.P){const q=proj(p[0],p[1],p[2],o);ctx.fillRect(q[0]-r/2,q[1]-r/2,r,r);}
-    return;
+// ---- fault light: smooth traces + depth contours + particle layer
+function d2xy(a,b){const x=a[0]-b[0],y=a[1]-b[1];return x*x+y*y}
+function chainSegs(segs,tol){
+  const used=new Array(segs.length).fill(false),out=[];
+  for(let i=0;i<segs.length;i++){
+    if(used[i])continue;used[i]=true;const pts=[segs[i][0],segs[i][1]];
+    let ext=true;
+    while(ext){ext=false;
+      for(let j=0;j<segs.length;j++){if(used[j])continue;const a=segs[j][0],b=segs[j][1],e=pts[pts.length-1],s0=pts[0];
+        if(d2xy(e,a)<tol){pts.push(b);used[j]=true;ext=true}
+        else if(d2xy(e,b)<tol){pts.push(a);used[j]=true;ext=true}
+        else if(d2xy(s0,b)<tol){pts.unshift(a);used[j]=true;ext=true}
+        else if(d2xy(s0,a)<tol){pts.unshift(b);used[j]=true;ext=true}}}
+    out.push(pts);}
+  return out;
+}
+function lerp3(a,b,t){return [a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t]}
+function surf(q,u,v){return lerp3(lerp3(q[0],q[1],u),lerp3(q[3],q[2],u),v)}
+function rng(seed){let s=(seed*2654435761)>>>0||1;return()=>{s^=s<<13;s>>>=0;s^=s>>>17;s^=s<<5;s>>>=0;return s/4294967296}}
+F.forEach(f=>{
+  if(!f.Q)return;
+  const r=rng(f.id+101);
+  const top=Math.min(...f.Q.map(q=>q[0][2])),bot=Math.max(...f.Q.map(q=>q[2][2]));
+  f.TR=chainSegs(f.Q.filter(q=>q[0][2]<=top+0.01).map(q=>[q[0],q[1]]),0.3);
+  f.IS=[];
+  const ds=[];for(let d=5;d<bot-0.4;d+=5)if(d>top+0.4)ds.push(d);if(bot>top+0.4)ds.push(bot);
+  for(const d of ds){const segs=[];for(const q of f.Q){if(d>q[0][2]-0.01&&d<=q[2][2]+0.01&&q[2][2]>q[0][2]+0.2){const v=(d-q[0][2])/(q[2][2]-q[0][2]);segs.push([surf(q,0,v),surf(q,1,v)])}}
+    if(segs.length)f.IS.push({d,ch:chainSegs(segs,0.3)})}
+  const dens=0.22*(0.3+f.br*1.3)*(f.i?0.4:1),dir=(f.id%2)?1:-1;
+  const PI=[],U0=[],V=[],SP=[],PH=[],FL=[],BA=[];
+  f.Q.forEach((q,pi)=>{
+    const len=Math.hypot(q[1][0]-q[0][0],q[1][1]-q[0][1]),run=Math.hypot(q[3][0]-q[0][0],q[3][1]-q[0][1]),wid=Math.hypot(run,q[3][2]-q[0][2]);
+    let n=Math.round(len*wid*dens);n=Math.max(f.i?2:4,Math.min(900,n));
+    for(let k=0;k<n;k++){const v=Math.pow(r(),1.7);PI.push(pi);U0.push(r());V.push(v);SP.push(dir*(0.8+1.6*r())/Math.max(len,4));PH.push(r()*6.283);FL.push(0.5+1.1*r());BA.push((0.5+0.5*f.br)*(1-0.55*v)*(f.i?0.7:1))}
+  });
+  f.PA={n:PI.length,PI:Uint16Array.from(PI),U0:Float32Array.from(U0),V:Float32Array.from(V),SP:Float32Array.from(SP),PH:Float32Array.from(PH),FL:Float32Array.from(FL),BA:Float32Array.from(BA)};
+});
+function smoothPath(P){
+  ctx.moveTo(P[0][0],P[0][1]);
+  if(P.length===2){ctx.lineTo(P[1][0],P[1][1]);return}
+  ctx.lineTo((P[0][0]+P[1][0])/2,(P[0][1]+P[1][1])/2);
+  for(let i=1;i<P.length-1;i++){ctx.quadraticCurveTo(P[i][0],P[i][1],(P[i][0]+P[i+1][0])/2,(P[i][1]+P[i+1][1])/2)}
+  ctx.lineTo(P[P.length-1][0],P[P.length-1][1]);
+}
+function strokeChains(chs,o){ctx.beginPath();for(const c of chs){smoothPath(c.map(p=>proj(p[0],p[1],p[2],o)))}ctx.stroke()}
+function drawFault(f,k,o,sel,tt){
+  if(f.P)return;
+  const dim=f.i?0.55:1,rgb=COL[f.t].join(',');
+  const kb=Math.min(1.6,k*dim),a=Math.min(1,kb*(0.28+0.72*f.br))*(sel?1.5:1);
+  ctx.lineCap='round';ctx.lineJoin='round';
+  ctx.lineWidth=0.8;ctx.strokeStyle=`rgba(${rgb},${Math.min(1,0.2*a*(f.i?0.7:1))})`;ctx.setLineDash(f.i?[3,5]:[]);
+  for(const L of f.IS){strokeChains(L.ch,o)}
+  const ca=Math.cos(o.az),sa=Math.sin(o.az),se=Math.sin(o.el),ce=Math.cos(o.el),W2=W/2+o.px,H2=H*0.52+o.py,sc=o.sc,mz=o.mult*ce;
+  const s=Math.min(2.6,Math.max(1.1,0.7+sc*1.3)),PA=f.PA,Q=f.Q;
+  ctx.fillStyle=`rgb(${rgb})`;
+  for(let i=0;i<PA.n;i++){
+    let u=(PA.U0[i]+PA.SP[i]*tt)%1;if(u<0)u+=1;
+    const fade=Math.sin(3.14159*u);const al=PA.BA[i]*fade*(0.5+0.5*Math.sin(tt*PA.FL[i]+PA.PH[i]))*kb*(sel?1.6:1);
+    if(al<0.025)continue;
+    const q=Q[PA.PI[i]],v=PA.V[i];
+    const tx=q[0][0]+(q[1][0]-q[0][0])*u,ty=q[0][1]+(q[1][1]-q[0][1])*u,tz=q[0][2]+(q[1][2]-q[0][2])*u;
+    const bx=q[3][0]+(q[2][0]-q[3][0])*u,by=q[3][1]+(q[2][1]-q[3][1])*u,bz=q[3][2]+(q[2][2]-q[3][2])*u;
+    const x=tx+(bx-tx)*v,y=ty+(by-ty)*v,z=tz+(bz-tz)*v;
+    const dx=x-o.x,dy=y-o.y,x1=dx*ca+dy*sa,y1=-dx*sa+dy*ca;
+    ctx.globalAlpha=al>1?1:al;
+    ctx.fillRect(W2+sc*x1-s/2,H2+sc*(-y1*se+z*mz)-s/2,s,s);
   }
-  const a=Math.min(1,kb*(0.28+0.72*f.br));
-  // sub-surface planes
-  ctx.beginPath();
-  for(const q of f.Q){const p0=proj(q[0][0],q[0][1],q[0][2],o),p1=proj(q[1][0],q[1][1],q[1][2],o),p2=proj(q[2][0],q[2][1],q[2][2],o),p3=proj(q[3][0],q[3][1],q[3][2],o);ctx.moveTo(p0[0],p0[1]);ctx.lineTo(p1[0],p1[1]);ctx.lineTo(p2[0],p2[1]);ctx.lineTo(p3[0],p3[1]);ctx.closePath();}
-  ctx.fillStyle=`rgba(${rgb},${(0.05+0.14*f.br)*kb*(f.i?0.7:1)*(sel?2.2:1)})`;ctx.fill();
-  ctx.lineWidth=1;ctx.strokeStyle=`rgba(${rgb},${0.22*a})`;ctx.setLineDash([]);
-  ctx.beginPath();for(const q of f.Q){const p2=proj(q[2][0],q[2][1],q[2][2],o),p3=proj(q[3][0],q[3][1],q[3][2],o);ctx.moveTo(p3[0],p3[1]);ctx.lineTo(p2[0],p2[1]);}ctx.stroke();
-  // trace
-  ctx.beginPath();
-  for(const q of f.Q){const p0=proj(q[0][0],q[0][1],q[0][2],o),p1=proj(q[1][0],q[1][1],q[1][2],o);ctx.moveTo(p0[0],p0[1]);ctx.lineTo(p1[0],p1[1]);}
-  ctx.lineCap='round';
-  ctx.setLineDash([]);ctx.lineWidth=(VIDEO?5:4)+(sel?3:0);ctx.strokeStyle=`rgba(${rgb},${0.13*a})`;ctx.stroke();
+  ctx.globalAlpha=1;
+  ctx.setLineDash([]);ctx.lineWidth=(VIDEO?5:4)+(sel?3:0);ctx.strokeStyle=`rgba(${rgb},${0.14*a})`;strokeChains(f.TR,o);
   if(f.i)ctx.setLineDash([4,6]);
-  ctx.lineWidth=(VIDEO?1.5:1.2)+(sel?1:0);ctx.strokeStyle=`rgba(${rgb},${Math.min(1,0.25+0.85*a)})`;ctx.stroke();
+  ctx.lineWidth=(VIDEO?1.5:1.2)+(sel?1:0);ctx.strokeStyle=`rgba(${rgb},${Math.min(1,0.25+0.85*a)})`;strokeChains(f.TR,o);
   ctx.setLineDash([]);
+}
+// ---- plate mesh: reused unchanged from the artifact "日本の地震の光" (Iwasaki et al. 2015 PAC/PHS depth grids, 0.5 deg grid, same colors/alpha/width)
+function plateSegs(Z){const gl=D.plate.glon,ga=D.plate.glat,out=[];const nl=gl.length,na=ga.length;
+ for(let j=0;j<na;j+=2){for(let i=0;i<nl-1;i++){const a=Z[j][i],b=Z[j][i+1];if(a!=null&&b!=null)out.push([gl[i],ga[j],a,gl[i+1],ga[j],b])}}
+ for(let i=0;i<nl;i+=2){for(let j=0;j<na-1;j++){const a=Z[j][i],b=Z[j+1][i];if(a!=null&&b!=null)out.push([gl[i],ga[j],a,gl[i],ga[j+1],b])}}
+ return out.map(s=>[(s[0]-136)*KX,(s[1]-35)*KY,s[2],(s[3]-136)*KX,(s[4]-35)*KY,s[5]])}
+const MESH={};for(const key of ['PAC','PHS']){const bands=[[],[],[],[],[],[]];for(const s of plateSegs(D.plate[key]))bands[Math.min(5,Math.floor((s[2]+s[5])/2/120))].push(s);MESH[key]=bands}
+const MK={PAC:1,PHS:1};
+function drawMesh(o){
+  if(!S.show.plate)return;
+  let u=W/1920;if(W<820)u=Math.max(u,.5);
+  ctx.lineWidth=Math.max(1.2,1.5*u);ctx.lineCap='butt';ctx.setLineDash([]);
+  for(const [key,rgb,al] of [['PAC','140,190,255',.85],['PHS','130,250,225',.85]]){
+    MESH[key].forEach((arr,bi)=>{if(!arr.length)return;ctx.beginPath();for(const s of arr){const a=proj(s[0],s[1],s[2],o),b=proj(s[3],s[4],s[5],o);ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1])}ctx.strokeStyle=`rgba(${rgb},${al*(1-bi*0.09)*MK[key]})`;ctx.stroke()});
+  }
 }
 function drawBase(o){
   const g=ctx.createRadialGradient(W/2,H*0.5,0,W/2,H*0.5,Math.max(W,H)*0.75);g.addColorStop(0,'#03050b');g.addColorStop(1,'#010206');
@@ -143,6 +204,7 @@ function drawBase(o){
   const path=(rs)=>{ctx.beginPath();for(const r of rs){for(let i=0;i<r.length;i++){const q=proj(r[i][0],r[i][1],0,o);i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]);}ctx.closePath();}};
   path(coast);ctx.fillStyle='rgb(27,39,59)';ctx.fill();
   path(borders);ctx.strokeStyle='rgba(165,190,225,.26)';ctx.lineWidth=VIDEO?1.1:0.9;ctx.lineJoin='round';ctx.stroke();
+  drawMesh(o);
   path(coast);ctx.strokeStyle='rgba(222,234,252,.88)';ctx.lineWidth=VIDEO?2.6:2;ctx.stroke();
 }
 function drawCatStatic(o){
@@ -166,6 +228,7 @@ function drawCatTime(o,day,flashDays){
   return n;
 }
 function frame(o,tt,env){
+  ctx.setTransform(DPR,0,0,DPR,0,0);
   drawBase(o);
   ctx.globalCompositeOperation='lighter';
   for(const f of F){
@@ -175,7 +238,7 @@ function frame(o,tt,env){
     const pulse=1+f.amp*Math.sin(6.283*f.fq*tt+f.ph);
     let k=ramp*pulse/(1+f.amp*0.4);
     if(env&&env.fk)k*=env.fk(f);
-    drawFault(f,k,o,S.sel===f);
+    drawFault(f,k,o,S.sel===f,tt);
   }
   ctx.globalCompositeOperation='source-over';
 }
@@ -223,7 +286,7 @@ function setP(f){
   h+=`<dt>上端〜下端</dt><dd>${f.a}〜${f.b} km${f.i?'<span class="badge">推定</span>':''}</dd></dl>`;
   if(f.i)h+=`<div class="note">地表以外の断層面の情報が乏しいため、上端2km・下端15km・傾斜60度で補完した推定の形です(J-SHISの仮定値: 傾斜${f.ja.dip}°・${f.ja.top_km}〜${f.ja.bottom_km}km)。地図上では暗い点線で表示します。</div>`;
   if(f.no)h+=`<div class="note">${f.no}。</div>`;
-  if(f.t==='plate')h+=`<div class="note">想定の中で最も大きいパターンの断層面を点で表示しています(上端・下端は面の最も浅い/深い点)。</div>`;
+  if(f.t==='plate')h+=`<div class="note">プレート境界は、日本の地震の光と同じ格子(岩崎ほか2015)で表示しています。ここでは想定地震の規模・確率だけを示します(上端・下端は想定断層面の最も浅い/深い点)。</div>`;
   h+=`<div class="note">出典: ${f.s}</div>`;
   pb.innerHTML=h;pn.style.display='block';
 }
@@ -233,7 +296,7 @@ function hit(mx,my){
   let best=null,bd=1e9;const R=(window.matchMedia('(pointer:coarse)').matches?26:14);
   for(const f of F){
     if(!visible(f))continue;
-    if(f.P){for(const p of f.P){const q=proj(p[0],p[1],p[2],S);const d=Math.hypot(q[0]-mx,q[1]-my)+8;if(d<bd){bd=d;best=f;}}continue;}
+    if(f.P)continue;
     for(const q of f.Q){
       const a=proj(q[0][0],q[0][1],q[0][2],S),b=proj(q[1][0],q[1][1],q[1][2],S);
       const vx=b[0]-a[0],vy=b[1]-a[1],l2=vx*vx+vy*vy||1;let u=((mx-a[0])*vx+(my-a[1])*vy)/l2;u=Math.max(0,Math.min(1,u));
@@ -325,6 +388,7 @@ function renderVideo(t){
     k*=(1+1.1*inF)*(1-0.72*any*(1-inF));
     k*=1-0.35*catW;
     return k;}};
+  MK.PAC=1-0.5*any*(1-fw.nank);MK.PHS=(1+0.8*fw.nank)*(1-0.5*(any-fw.nank));
   frame(cam,t,env);
   if(t>=CATA){
     const p=Math.min(1,(t-CATA)/(CATB-CATA));const day=EVMAXD*p;
@@ -345,12 +409,12 @@ function renderVideo(t){
     ctx.fillText(pv==null?'30年以内の発生確率は未公表':('30年以内の発生確率 '+fmtP(pv)+(c.g==='mtl'?'(区間別の最大)':c.g==='itg'?'(中北部)':'')),x,y+50);
     ctx.globalAlpha=1;
   }
-  { const cw=sm(29.6,30.4,t); if(cw>0){ctx.globalAlpha=cw*.82;ctx.fillStyle='rgb(3,5,10)';ctx.fillRect(0,H-96,W*0.66,96);ctx.globalAlpha=cw*.9;ctx.fillStyle='#9fb0cc';ctx.textAlign='left';ctx.font='400 22px "Noto Sans JP","Yu Gothic UI",sans-serif';ctx.fillText('出典: 防災科研 J-SHIS(加工) / 国土交通省 日本海検討会資料(加工) / USGS M4.5以上 1998年以降 / Natural Earth',64,H-56);ctx.fillText('海溝寄りの想定断層は未収録。補完した断層は推定。位置・深さは目安',64,H-28);ctx.globalAlpha=1;} }
+  { const cw=sm(29.6,30.4,t); if(cw>0){ctx.globalAlpha=cw*.82;ctx.fillStyle='rgb(3,5,10)';ctx.fillRect(0,H-96,W*0.86,96);ctx.globalAlpha=cw*.9;ctx.fillStyle='#9fb0cc';ctx.textAlign='left';ctx.font='400 22px "Noto Sans JP","Yu Gothic UI",sans-serif';ctx.fillText('出典: 防災科研 J-SHIS(加工) / 国土交通省 日本海検討会資料(加工) / プレート面: 岩崎ほか(2015) / USGS M4.5以上 1998年以降 / Natural Earth',64,H-56);ctx.fillText('海溝寄りの想定断層は未収録。補完した断層は推定。位置・深さは目安',64,H-28);ctx.globalAlpha=1;} }
   // fade in/out
   const fi=1-sm(0,0.5,t),fo=sm(31.4,32,t);const fa=Math.max(fi,fo);
   if(fa>0){ctx.fillStyle=`rgba(3,5,10,${fa})`;ctx.fillRect(0,0,W,H);}
 }
-window.__lab={still:(lon,lat,sc,mult)=>{S.mult=mult||1;frame({x:(lon-136)*KX,y:(lat-35)*KY,sc,az:0,el:Math.PI/2,px:0,py:0,mult:S.mult},99,null);return true;},render:t=>{renderVideo(t);return true;},dur:32,ready:true,F,G,S};
+window.__lab={still:(lon,lat,sc,mult,az,el)=>{S.mult=mult||1;frame({x:(lon-136)*KX,y:(lat-35)*KY,sc,az:az||0,el:el==null?Math.PI/2:el,px:0,py:0,mult:S.mult},99,null);return true;},render:t=>{renderVideo(t);return true;},dur:32,ready:true,F,G,S};
 if(!VIDEO){initUI();homeCam();requestAnimationFrame(liveLoop);}
 </script>
 </body>
