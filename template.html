@@ -45,7 +45,7 @@ body.video #ui{display:none}
 <canvas id="c"></canvas>
 <div id="ui">
   <div id="title">日本の断層の光<small>断層ごとの30年発生確率で明るさと脈動が変わる</small></div>
-  <div id="hint">回転: ドラッグ<br>移動: 右ドラッグ・Shift+ドラッグ(スマホは2本指)<br>拡大: ホイール・ピンチ</div>
+  <div id="hint">回転: ドラッグ(下へ引き続けると海面の下へもぐれる)<br>移動: 右ドラッグ・Shift+ドラッグ(スマホは2本指)<br>拡大: ホイール・ピンチ</div>
   <div id="credit"></div>
   <div id="panel"><button class="x" id="px" aria-label="閉じる">×</button><div id="pbody"></div></div>
   <div id="bar">
@@ -246,20 +246,23 @@ const MESH={};for(const key of ['PAC','PHS']){const bands=[[],[],[],[],[],[]];fo
 const MK={PAC:1,PHS:1};
 // Izu-Ogasawara trench side: seaward edge of the Iwasaki PAC grid (no J-SHIS source zone there), drawn on the surface
 const IZU=(()=>{const gl=D.plate.glon,ga=D.plate.glat,pts=[];for(let j=0;j<ga.length;j++){if(ga[j]>34.5||ga[j]<29.5)continue;const row=D.plate.PAC[j];let e=-1;for(let i=0;i<gl.length;i++)if(row[i]!=null&&row[i]<40&&gl[i]>=139.5)e=i;if(e>=0)pts.push([(gl[e]-136)*KX,(ga[j]-35)*KY,0])}return pts})();
+// mesh opacity follows the view elevation: full below ~60deg, gone above ~80deg (smooth), so the top view has no mesh
+function meshAlphaEl(el){const lo=1.047,hi=1.396;const u=Math.max(0,Math.min(1,(el-lo)/(hi-lo)));return 1-u*u*(3-2*u)}
 function drawMesh(o){
-  if(!S.show.plate)return;
+  if(VIDEO||!S.show.plate)return;
+  const am=meshAlphaEl(o.el);if(am<0.01)return;
   let u=W/1920;if(W<820)u=Math.max(u,.5);
   ctx.lineWidth=Math.max(1.2,1.5*u);ctx.lineCap='butt';ctx.setLineDash([]);
   for(const [key,rgb,al] of [['PAC','140,190,255',.85],['PHS','130,250,225',.85]]){
-    MESH[key].forEach((arr,bi)=>{if(!arr.length)return;ctx.beginPath();for(const s of arr){const a=proj(s[0],s[1],s[2],o),b=proj(s[3],s[4],s[5],o);ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1])}ctx.strokeStyle=`rgba(${rgb},${al*(1-bi*0.09)*MK[key]})`;ctx.stroke()});
+    MESH[key].forEach((arr,bi)=>{if(!arr.length)return;ctx.beginPath();for(const s of arr){const a=proj(s[0],s[1],s[2],o),b=proj(s[3],s[4],s[5],o);ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1])}ctx.strokeStyle=`rgba(${rgb},${al*(1-bi*0.09)*MK[key]*am})`;ctx.stroke()});
   }
-  if(IZU.length>1){ctx.lineCap='round';ctx.lineJoin='round';ctx.lineWidth=2.6;ctx.strokeStyle=`rgba(255,240,200,${0.9*MK.PAC})`;strokeChains([IZU],o);}
+  if(IZU.length>1){ctx.lineCap='round';ctx.lineJoin='round';ctx.lineWidth=2.6;ctx.strokeStyle=`rgba(255,240,200,${0.9*MK.PAC*am})`;strokeChains([IZU],o);}
 }
 function drawBase(o){
   const g=ctx.createRadialGradient(W/2,H*0.5,0,W/2,H*0.5,Math.max(W,H)*0.75);g.addColorStop(0,'#03050b');g.addColorStop(1,'#010206');
   ctx.globalCompositeOperation='source-over';ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
   const path=(rs)=>{ctx.beginPath();for(const r of rs){for(let i=0;i<r.length;i++){const q=proj(r[i][0],r[i][1],0,o);i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]);}ctx.closePath();}};
-  path(coast);ctx.fillStyle='rgb(27,39,59)';ctx.fill();
+  path(coast);ctx.globalAlpha=o.el<0?0.45:1;ctx.fillStyle='rgb(27,39,59)';ctx.fill();ctx.globalAlpha=1;
   path(borders);ctx.strokeStyle='rgba(165,190,225,.26)';ctx.lineWidth=VIDEO?1.1:0.9;ctx.lineJoin='round';ctx.stroke();
   drawMesh(o);
   path(coast);ctx.strokeStyle='rgba(222,234,252,.88)';ctx.lineWidth=VIDEO?2.6:2;ctx.stroke();
@@ -306,7 +309,7 @@ function fitBox(x0,x1,y0,y1,el,az,maxd,pad){
   pad=pad==null?150:pad;const sx=(x1-x0)+pad,sy=(y1-y0)+pad;
   const ca=Math.abs(Math.cos(az)),sa=Math.abs(Math.sin(az));
   const spx=sx*ca+sy*sa,spy=sx*sa+sy*ca;
-  const sc=Math.min(W*0.8/spx,H*0.62/(spy*Math.sin(el)+maxd*S.mult*Math.cos(el)));
+  const sc=Math.min(W*0.8/spx,H*0.62/(spy*Math.abs(Math.sin(el))+maxd*S.mult*Math.abs(Math.cos(el))));
   return {x:(x0+x1)/2,y:(y0+y1)/2,sc};
 }
 function bboxOf(list){let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;list.forEach(f=>{const pts=f.P||f.Q.flat();pts.forEach(p=>{x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);y0=Math.min(y0,p[1]);y1=Math.max(y1,p[1]);});});return [x0,x1,y0,y1];}
@@ -394,7 +397,7 @@ function initUI(){
   cv.addEventListener('pointerdown',e=>{cv.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,[e.clientX,e.clientY]);moved=0;downT=performance.now();if(ptrs.size===2){const [a,b]=[...ptrs.values()];lastDist=Math.hypot(a[0]-b[0],a[1]-b[1]);lastC=[(a[0]+b[0])/2,(a[1]+b[1])/2];}});
   cv.addEventListener('pointermove',e=>{
     if(!ptrs.has(e.pointerId))return;const p=ptrs.get(e.pointerId);const dx=e.clientX-p[0],dy=e.clientY-p[1];ptrs.set(e.pointerId,[e.clientX,e.clientY]);moved+=Math.abs(dx)+Math.abs(dy);anim=null;
-    if(ptrs.size===1){if(S.view==='top'||e.shiftKey||(e.buttons&6)){S.px+=dx;S.py+=dy;}else{S.az-=dx*0.006;S.el=Math.max(0.15,Math.min(Math.PI/2,S.el-dy*0.005));}}
+    if(ptrs.size===1){if(S.view==='top'||e.shiftKey||(e.buttons&6)){S.px+=dx;S.py+=dy;}else{S.az-=dx*0.006;S.el=Math.max(-1.5,Math.min(Math.PI/2,S.el-dy*0.005));}}
     else if(ptrs.size===2){const [a,b]=[...ptrs.values()];const d=Math.hypot(a[0]-b[0],a[1]-b[1]);if(lastDist){const k=d/lastDist;const cx=(a[0]+b[0])/2,cy=(a[1]+b[1])/2;S.px=cx-(cx-W/2-S.px)*k-W/2;S.py=cy-(cy-H*0.52-S.py)*k-H*0.52;S.sc*=k;}
       const cx2=(a[0]+b[0])/2,cy2=(a[1]+b[1])/2;if(lastC){S.px+=cx2-lastC[0];S.py+=cy2-lastC[1];}lastC=[cx2,cy2];lastDist=d;}
   });
@@ -479,12 +482,12 @@ function renderVideo(t){
     ctx.fillText('想定 M'+mv.toFixed(1)+'  /  '+(pv==null?'30年以内の発生確率は未公表':('30年以内 '+fmtP(pv)+c.note)),x,y+50);
     ctx.globalAlpha=1;
   }
-  { const cw=sm(29.6,30.4,t); if(cw>0){ctx.globalAlpha=cw*.82;ctx.fillStyle='rgb(3,5,10)';ctx.fillRect(0,H-96,W*0.86,96);ctx.globalAlpha=cw*.9;ctx.fillStyle='#9fb0cc';ctx.textAlign='left';ctx.font='400 20px "Noto Sans JP","Yu Gothic UI",sans-serif';ctx.fillText('出典: 防災科研 J-SHIS・内閣府モデル(加工) / 国土交通省 日本海検討会資料(加工) / 岩崎ほか(2015) / USGS M4.5以上 1998年以降 / Natural Earth',64,H-56);ctx.fillText('海溝寄りの想定断層は未収録。補完した断層は推定。位置・深さは目安',64,H-28);ctx.globalAlpha=1;} }
+  { const cw=sm(29.6,30.4,t); if(cw>0){ctx.globalAlpha=cw*.82;ctx.fillStyle='rgb(3,5,10)';ctx.fillRect(0,H-96,W*0.86,96);ctx.globalAlpha=cw*.9;ctx.fillStyle='#9fb0cc';ctx.textAlign='left';ctx.font='400 20px "Noto Sans JP","Yu Gothic UI",sans-serif';ctx.fillText('出典: 防災科研 J-SHIS・内閣府モデル(加工) / 国土交通省 日本海検討会資料(加工) / USGS M4.5以上 1998年以降 / Natural Earth',64,H-56);ctx.fillText('海溝寄りの想定断層は未収録。補完した断層は推定。位置・深さは目安',64,H-28);ctx.globalAlpha=1;} }
   // fade in/out
   const fi=1-sm(0,0.5,t),fo=sm(31.4,32,t);const fa=Math.max(fi,fo);
   if(fa>0){ctx.fillStyle=`rgba(3,5,10,${fa})`;ctx.fillRect(0,0,W,H);}
 }
-window.__lab={still:(lon,lat,sc,mult,az,el)=>{S.mult=mult||1;frame({x:(lon-136)*KX,y:(lat-35)*KY,sc,az:az||0,el:el==null?Math.PI/2:el,px:0,py:0,mult:S.mult},99,null);return true;},render:t=>{renderVideo(t);return true;},dur:32,ready:true,F,G,S};
+window.__lab={still:(lon,lat,sc,mult,az,el)=>{S.mult=mult||1;frame({x:(lon-136)*KX,y:(lat-35)*KY,sc,az:az||0,el:el==null?Math.PI/2:el,px:0,py:0,mult:S.mult},99,null);return true;},render:t=>{renderVideo(t);return true;},dur:32,ready:true,F,G,S,MK,meshAlphaEl};
 if(!VIDEO){initUI();homeCam();requestAnimationFrame(liveLoop);}
 </script>
 </body>

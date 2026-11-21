@@ -134,12 +134,15 @@ const MESH={};for(const key of ['PAC','PHS']){const bands=[[],[],[],[],[],[]];fo
 const MK={PAC:1,PHS:1};
 // Izu-Ogasawara trench side: seaward edge of the Iwasaki PAC grid (no J-SHIS source zone there), drawn on the surface
 const IZU=(()=>{const gl=D.plate.glon,ga=D.plate.glat,pts=[];for(let j=0;j<ga.length;j++){if(ga[j]>34.5||ga[j]<29.5)continue;const row=D.plate.PAC[j];let e=-1;for(let i=0;i<gl.length;i++)if(row[i]!=null&&row[i]<40&&gl[i]>=139.5)e=i;if(e>=0)pts.push([(gl[e]-136)*KX,(ga[j]-35)*KY,0])}return pts})();
+// mesh opacity follows the view elevation: full below ~60deg, gone above ~80deg (smooth), so the top view has no mesh
+function meshAlphaEl(el){const lo=1.047,hi=1.396;const u=Math.max(0,Math.min(1,(el-lo)/(hi-lo)));return 1-u*u*(3-2*u)}
 function drawMesh(o){
-  if(!S.show.plate)return;
+  if(VIDEO||!S.show.plate)return;
+  const am=meshAlphaEl(o.el);if(am<0.01)return;
   let u=W/1920;if(W<820)u=Math.max(u,.5);
   ctx.lineWidth=Math.max(1.2,1.5*u);ctx.lineCap='butt';ctx.setLineDash([]);
   for(const [key,rgb,al] of [['PAC','140,190,255',.85],['PHS','130,250,225',.85]]){
-    MESH[key].forEach((arr,bi)=>{if(!arr.length)return;ctx.beginPath();for(const s of arr){const a=proj(s[0],s[1],s[2],o),b=proj(s[3],s[4],s[5],o);ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1])}ctx.strokeStyle=`rgba(${rgb},${al*(1-bi*0.09)*MK[key]})`;ctx.stroke()});
+    MESH[key].forEach((arr,bi)=>{if(!arr.length)return;ctx.beginPath();for(const s of arr){const a=proj(s[0],s[1],s[2],o),b=proj(s[3],s[4],s[5],o);ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1])}ctx.strokeStyle=`rgba(${rgb},${al*(1-bi*0.09)*MK[key]*am})`;ctx.stroke()});
   }
-  if(IZU.length>1){ctx.lineCap='round';ctx.lineJoin='round';ctx.lineWidth=2.6;ctx.strokeStyle=`rgba(255,240,200,${0.9*MK.PAC})`;strokeChains([IZU],o);}
+  if(IZU.length>1){ctx.lineCap='round';ctx.lineJoin='round';ctx.lineWidth=2.6;ctx.strokeStyle=`rgba(255,240,200,${0.9*MK.PAC*am})`;strokeChains([IZU],o);}
 }
