@@ -13,7 +13,7 @@
 
 I drew Japan's faults as light: blue-white on land, cyan offshore, orange for plate boundaries. The higher a fault's 30-year probability, the brighter it pulses.
 
-Itoigawa-Shizuoka line (central-north): 22%. Nankai Trough: 78%. Offshore faults near Noto have no published probability.
+Itoigawa-Shizuoka line: 22%. Nankai Trough: 78%. Offshore faults near Noto have no published probability.
 
 At the end, every M4.5+ quake since 1998 piles up along the Pacific plate boundary.
 
