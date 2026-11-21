@@ -12,9 +12,9 @@
 
 ## English
 
-I drew Japan's faults as light: blue-white on land, cyan offshore, orange for plate boundaries. The higher a fault's 30-year probability, the brighter it pulses.
+I drew Japan's faults as light: blue-white on land, cyan offshore, orange for plate boundaries. Higher 30-year probability means brighter, stronger pulses.
 
-Itoigawa-Shizuoka line: 22%. Nankai Trough: 78%. Offshore Noto faults are rebuilt from a MLIT PDF table; no probability is published.
+Itoigawa-Shizuoka line: 22%. Nankai Trough: 78%. Offshore Noto faults, rebuilt from a MLIT PDF table; no probability is published.
 
 Quakes: USGS M4.5+, 1998 on. Trench-side faults are not included. Faults with unknown dip or depth are estimated (dashed).
 
