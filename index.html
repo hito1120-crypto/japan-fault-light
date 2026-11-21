@@ -34,8 +34,9 @@ select{background:rgba(20,28,48,.85);color:var(--fg);border:1px solid var(--line
 .tag{display:inline-block;border-radius:6px;padding:0 7px;font-size:11.5px;margin-bottom:6px;color:#04060c}
 .note{color:var(--mut);font-size:11.5px;margin-top:8px}
 #credit{position:absolute;right:10px;top:calc(10px + env(safe-area-inset-top));font-size:10px;color:#5e6a82;text-align:right;max-width:46vw}
+details#notes{font-size:11px;color:var(--mut);line-height:1.55;max-width:760px}details#notes summary{cursor:pointer;color:#9fb0cc;font-size:11.5px}details#notes p{margin:4px 0}
 body.video #ui{display:none}
-@media(max-width:759px){#panel{top:auto;bottom:calc(150px + env(safe-area-inset-bottom));left:12px;right:12px;width:auto;max-height:36vh}#credit{display:none}}
+@media(max-width:759px){#panel{top:auto;bottom:calc(175px + env(safe-area-inset-bottom));left:12px;right:12px;width:auto;max-height:36vh}#credit{display:none}}
 @media(min-width:760px){#bar{left:14px;right:auto;max-width:860px;background:none;padding-bottom:16px}}
 </style>
 </head>
@@ -58,6 +59,10 @@ body.video #ui{display:none}
       <label class="sl">深さ倍率 <input id="mult" type="range" min="1" max="5" step="0.5" value="2"><span id="mv">x2</span></label>
       <select id="sel"><option value="">断層を選ぶ…</option></select>
     </div>
+    <details id="notes"><summary>出典・注記</summary>
+      <p>出典: 防災科学技術研究所 J-SHIS(地震活動モデル情報API 2024年版)を加工して作成。国土交通省「日本海における大規模地震に関する調査検討会」データ集②(公共データ利用規約 第1.0版に準拠)を加工して作成。震源: USGS ComCat。海岸線: Natural Earth。国・防災科研が作成・監修したものではありません。</p>
+      <p>注記: 海溝寄りの想定断層は未収録。震源はUSGSのM4.5以上(1998年以降)。能登沖の海域断層は国交省PDFの表から再構成したもので、発生確率は未公表。補完した断層(傾斜・深さが不明なもの)は推定で、暗い点線。形状・位置・深さは目安です。</p>
+    </details>
   </div>
 </div>
 <script>
@@ -145,9 +150,13 @@ function drawCatTime(o,day,flashDays){
   ctx.globalCompositeOperation='lighter';
   const cols=['rgba(255,233,168,','rgba(255,170,110,','rgba(190,170,255,'];
   let n=0;while(n<EV.length&&EV[n].d<=day)n++;
-  for(let c=0;c<3;c++){ctx.fillStyle=cols[c]+'0.34)';
+  for(let c=0;c<3;c++){ctx.fillStyle=cols[c]+'0.2)';
     for(let i=0;i<n;i++){const e=EV[i];if(dcls(e.z)!==c)continue;const q=proj(e.x,e.y,e.z,o);const r=Math.max(.8,(0.6+(e.m-4.5)*0.8)*Math.min(2,Math.max(.8,o.sc*1.8)));ctx.fillRect(q[0]-r,q[1]-r,2*r,2*r);}}
-  for(let i=n-1;i>=0;i--){const e=EV[i];const age=day-e.d;if(age>flashDays)break;const u=1-age/flashDays;const q=proj(e.x,e.y,e.z,o);const R=(4+Math.pow(2,(e.m-4.5)*0.9)*3.4)*Math.min(1.6,Math.max(.9,o.sc*2.0));ctx.globalAlpha=Math.min(1,u*u*(e.m>=6.5?1.2:0.8));ctx.drawImage(SP[dcls(e.z)],q[0]-R,q[1]-R,2*R,2*R);}
+  const cand=[];
+  for(let i=n-1;i>=0;i--){const e=EV[i];if(day-e.d>flashDays)break;cand.push(e);}
+  cand.sort((p,q)=>q.m-p.m);
+  const dens=Math.min(1,60/Math.max(1,cand.length));
+  for(let j=0;j<Math.min(cand.length,90);j++){const e=cand[j];const u=1-(day-e.d)/flashDays;const q=proj(e.x,e.y,e.z,o);const R=(3.5+Math.pow(2,(e.m-4.5)*0.9)*2.6)*Math.min(1.5,Math.max(.9,o.sc*2.0));ctx.globalAlpha=Math.min(1,u*u*(e.m>=6.5?1.0:0.5)*(e.m>=6.5?1:Math.max(.4,dens)));ctx.drawImage(SP[dcls(e.z)],q[0]-R,q[1]-R,2*R,2*R);}
   ctx.globalAlpha=1;
   return n;
 }
@@ -329,6 +338,7 @@ function renderVideo(t){
     ctx.fillText(pv==null?'30年以内の発生確率は未公表':('30年以内の発生確率 '+fmtP(pv)+(c.g==='mtl'?'(区間別の最大)':c.g==='itg'?'(中北部)':'')),x,y+50);
     ctx.globalAlpha=1;
   }
+  { const cw=sm(29.6,30.4,t); if(cw>0){ctx.globalAlpha=cw*.75;ctx.fillStyle='#9fb0cc';ctx.textAlign='left';ctx.font='400 22px "Noto Sans JP","Yu Gothic UI",sans-serif';ctx.fillText('出典: 防災科研 J-SHIS(加工) / 国土交通省 日本海検討会資料(加工) / USGS M4.5以上 1998年以降 / Natural Earth',64,H-56);ctx.fillText('海溝寄りの想定断層は未収録。補完した断層は推定。位置・深さは目安',64,H-28);ctx.globalAlpha=1;} }
   // fade in/out
   const fi=1-sm(0,0.5,t),fo=sm(31.4,32,t);const fa=Math.max(fi,fo);
   if(fa>0){ctx.fillStyle=`rgba(3,5,10,${fa})`;ctx.fillRect(0,0,W,H);}
